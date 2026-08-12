@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Instrument set checklist</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --ink: #182422;
+    --steel: #2E5C58;
+    --steel-dark: #1B3836;
+    --steel-tint: #E4EDEB;
+    --flag: #A6392A;
+    --flag-tint: #F6DCD5;
+    --border: #D9D2C1;
+    --muted: #7C7563;
+    --bg: #EFEADC;
+    --paper: #FBF9F3;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background:
+      radial-gradient(circle, rgba(46,92,88,0.07) 1px, transparent 1px) 0 0/16px 16px,
+      var(--bg);
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 0 0.5px var(--border);
+  }
+
+  .title-bar {
+    background: var(--steel-dark);
+    color: #fff;
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .title-bar .mark {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    background: rgba(255,255,255,0.14);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .title-bar .name {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+
+  .steps {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    overflow-x: auto;
+    white-space: nowrap;
+    background: var(--steel-tint);
+  }
+  .step { cursor: pointer; color: var(--muted); font-weight: 600; }
+  .step.active { color: var(--steel-dark); border-bottom: 2px solid var(--steel); padding-bottom: 2px; }
+  .step.done { color: var(--ink); opacity: 0.65; }
+  .step.upcoming { cursor: default; color: var(--muted); opacity: 0.5; }
+  .step-sep { color: var(--muted); font-size: 10px; opacity: 0.6; }
+
+  .header-fields {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid var(--border);
+    background: var(--paper);
+  }
+  .header-fields input {
+    flex: 1;
+    font-size: 13px;
+    padding: 9px 10px;
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+  .header-fields input:focus {
+    outline: none;
+    border-color: var(--steel);
+    box-shadow: 0 0 0 2px var(--steel-tint);
+  }
+  .header-fields input#inp-date { flex: none; width: 132px; font-family: var(--mono); font-size: 12px; }
+
+  .screen-caption {
+    padding: 8px 16px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .screen { display: none; flex-direction: column; flex: 1; }
+  .screen.visible { display: flex; }
+
+  .hosp-list { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .hosp-btn {
+    font-size: 14px;
+    font-weight: 500;
+    padding: 13px 14px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border);
+    border-left: 3px solid var(--steel);
+    cursor: pointer;
+    text-align: left;
+    background: #fff;
+    transition: transform 0.06s ease;
+  }
+  .hosp-btn:active { transform: scale(0.98); background: var(--steel-tint); }
+  .add-row {
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    text-align: center;
+    background: transparent;
+  }
+  .add-row:active { background: var(--steel-tint); }
+
+  .tally-list { display: flex; flex-direction: column; }
+  .tally-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 16px;
+    border-bottom: 0.5px solid var(--border);
+    transition: background-color 0.12s ease;
+  }
+  .tally-row .name { flex: 1; min-width: 0; }
+  .tally-row .name .set-name { font-size: 14px; font-weight: 600; letter-spacing: 0.01em; }
+  .tally-row .name .exp-label { font-size: 11px; font-family: var(--mono); }
+  .tally-row.counted { background: var(--steel); color: #fff; }
+  .tally-row.counted .exp-label { color: #cfe3df; }
+  .tally-row.flagged { background: var(--flag); color: #fff; }
+  .tally-row.flagged .exp-label { color: var(--flag-tint); }
+  .tally-row:not(.counted):not(.flagged) .exp-label { color: var(--muted); }
+
+  .round-btn {
+    width: 28px; height: 28px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border);
+    background: #fff;
+    font-family: var(--mono);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    color: var(--ink);
+    transition: transform 0.06s ease;
+  }
+  .round-btn:active { transform: scale(0.9); }
+  .tally-row.counted .round-btn, .tally-row.flagged .round-btn { border-color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.14); color: #fff; }
+
+  .tally-qty {
+    min-width: 24px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .count-btn {
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    cursor: default;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .count-btn.enabled {
+    cursor: pointer;
+    border-color: currentColor;
+    background: transparent;
+    color: inherit;
+  }
+  .count-btn.enabled:active { transform: scale(0.96); }
+
+  .tray-header {
+    padding: 10px 16px;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--steel-tint);
+  }
+  .back-btn {
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 6px 4px;
+    color: var(--steel-dark);
+    display: flex;
+    align-items: center;
+  }
+  .back-btn:active { transform: scale(0.9); }
+  .tray-tabs { display: flex; border-bottom: 0.5px solid var(--border); overflow-x: auto; }
+  .tray-tab {
+    flex: 1 0 auto;
+    min-width: 72px;
+    text-align: center;
+    padding: 9px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-left: 0.5px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .tray-tab:first-child { border-left: none; }
+  .tray-tab.active { background: var(--steel); color: #fff; }
+  .tray-tab.active.flagged { background: var(--flag); }
+  .tray-tab.flagged:not(.active) { color: var(--flag); box-shadow: inset 0 -3px 0 var(--flag); }
+
+  .item-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 0.5px solid var(--border);
+    transition: background-color 0.12s ease;
+  }
+  .item-row .item-ref { font-family: var(--mono); font-size: 14px; font-weight: 600; letter-spacing: 0.01em; }
+  .item-row .item-name { font-size: 15px; }
+  .item-row .exp-label { font-size: 12px; color: var(--muted); margin-left: 6px; font-family: var(--mono); }
+  .item-row.counted { background: var(--steel); border-color: var(--steel); }
+  .item-row.counted .item-ref, .item-row.counted .item-name { color: #fff; }
+  .item-row.counted .exp-label { color: #cfe3df; }
+  .item-row.flagged { background: var(--flag); border-color: var(--flag); }
+  .item-row.flagged .item-ref, .item-row.flagged .item-name { color: #fff; }
+  .item-row.flagged .exp-label { color: var(--flag-tint); }
+
+  .qty-field {
+    width: 48px;
+    height: 34px;
+    text-align: center;
+    background: #fff;
+    color: #000;
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    padding: 0;
+  }
+  .qty-field:focus { outline: none; box-shadow: 0 0 0 2px var(--steel-tint); }
+
+  .add-instrument {
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    padding: 11px 16px;
+    color: var(--steel-dark);
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .footer {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 0.5px solid var(--border);
+    margin-top: auto;
+    background: var(--paper);
+  }
+  .autosave-label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .export-btn {
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 10px 16px;
+    border-radius: 4px;
+    border: none;
+    background: var(--steel-dark);
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.06s ease;
+  }
+  .export-btn:active { transform: scale(0.96); }
+  .tray-status {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    border-top: 0.5px solid var(--border);
+  }
+  .save-btn {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 9px 12px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .save-btn:active { transform: scale(0.96); }
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(24,36,34,0.5);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-backdrop.visible { display: flex; }
+  .modal-card {
+    background: var(--paper);
+    width: 100%;
+    max-width: 480px;
+    border-radius: 12px 12px 0 0;
+    padding: 18px 18px 20px;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+  }
+  @media (min-width: 520px) {
+    .modal-backdrop { align-items: center; }
+    .modal-card { border-radius: 8px; }
+  }
+  .modal-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--steel-dark);
+    margin: 0 0 14px;
+    border-left: 3px solid var(--steel);
+    padding-left: 8px;
+  }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .modal-field input {
+    width: 100%;
+    font-size: 15px;
+    padding: 10px 11px;
+    border: 0.5px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+  .modal-field input[data-mono="1"] { font-family: var(--mono); }
+  .modal-field input:focus { outline: none; border-color: var(--steel); box-shadow: 0 0 0 2px var(--steel-tint); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-actions button {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .modal-cancel { border: 0.5px solid var(--border); background: #fff; color: var(--ink); }
+  .modal-submit { border: none; background: var(--steel-dark); color: #fff; }
+  .modal-actions button:active { transform: scale(0.97); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-card">
+      <p class="modal-title" id="modal-title"></p>
+      <div id="modal-fields"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+        <button class="modal-submit" id="modal-submit-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="title-bar">
+    <span class="mark">#</span>
+    <span class="name">Instrument set checklist</span>
+  </div>
+
+  <div class="steps">
+    <span class="step" id="step1">1 Hospital</span>
+    <span class="step-sep">›</span>
+    <span class="step" id="step2">2 Tally</span>
+    <span class="step-sep">›</span>
+    <span class="step" id="step3">3 Count items</span>
+  </div>
+
+  <div class="header-fields">
+    <input id="inp-name" placeholder="Counter name" oninput="saveProgress()">
+    <input id="inp-date" type="date" oninput="saveProgress()">
+  </div>
+
+  <div class="screen visible" id="screen-hosp">
+    <div class="screen-caption"><span>Step 1 — select where you're counting</span></div>
+    <div class="hosp-list" id="hosp-list"></div>
+  </div>
+
+  <div class="screen" id="screen-tally">
+    <div class="tray-header">
+      <button class="back-btn" onclick="goToHospitals()" aria-label="Back to hospitals"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+      <span style="font-size:13px; font-weight:500;" id="tally-hosp-name"></span>
+    </div>
+    <div class="screen-caption"><span>Step 2 — how many trays are on site</span></div>
+    <div class="tally-list" id="tally-list"></div>
+  </div>
+
+  <div class="screen" id="screen-trays">
+    <div class="tray-header">
+      <button class="back-btn" onclick="goToTally()" aria-label="Back to tally"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg></button>
+      <span id="tray-set-title" style="font-size:13px; font-weight:500;"></span>
+    </div>
+    <div class="tray-tabs" id="tray-tabs"></div>
+    <div id="instrument-list"></div>
+    <div class="add-instrument" onclick="addInstrument()">+ Add instrument to this checklist</div>
+    <div class="tray-status" id="tray-status"></div>
+  </div>
+
+  <div class="footer">
+    <span class="autosave-label" id="autosave-label">Not saved yet</span>
+    <div style="display:flex; gap:8px;">
+      <button class="save-btn" onclick="saveProgress(true)">Save</button>
+      <button class="export-btn" onclick="exportExcel()">Export</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SET_LIBRARY = {
+  "Ankle Fusion Set": [
+    { ref: "AF-001", name: "4.0mm cannulated screwdriver", expected: 1 },
+    { ref: "AF-002", name: "Guide wire 1.6mm", expected: 4 },
+  ],
+  "Enovis-Forefoot Set": [
+  ],
+  "DM-Forefoot Set": [
+  ],
+  "DM-MCS Rearfoot 5.0/7.0": [
+  ],
+  "NSK-MI Handpiece": [
+  ],
+  "NSK-MI PE Instruments": [
+  ],
+  "DM-MCS 4.0 Set": [
+  ],
+  "DM-Calc Distractor": [
+  ],
+  "NSK-Console": [
+  ],
+  "DM-Forefoot": [
+  ],
+  "DM-MTP Set": [
+  ],
+  "DM-Marathon Set": [
+  ],
+  "DM-Marathon Spreaders": [
+  ],
+  "DM-Marathon Removal Set": [
+  ],
+  "DM-Lisfranc Plate Set": [
+  ],
+  "DM-Calc ORIF Plate Set": [
+  ],
+  "DM-5MM Modular Screw Set": [
+  ],
+  "DM-PECA Set": [
+  ],
+  "DM-HCS 2.5/3.0": [
+  ],
+  "Enovis-Arcad Instruments": [
+  ],
+  "Enovis-Arcad Implants": [
+  ],
+  "Enovis-Snap off 2.0": [
+  ],
+  "Enovis-2.9 Nexis": [
+  ],
+  "Enovis-2.3 Nexis": [
+  ],
+  "Enovis-Static Staples Set": [
+  ],
+};
+
+let DATA = {
+  "Cabrini Hospital": {
+    sets: {
+      "Ankle Fusion Set": { expected: 2, trays: [] },
+    },
+    loose: [
+      { ref: "LOOSE-001", name: "Mallet", qty: null },
+    ]
+  },
+  "Austin": {
+    sets: {
+      "Enovis-Forefoot Set": { expected: 2, trays: [] },
+    },
+    loose: []
+  },
+  "Ballarat Day Procedure": {
+    sets: {
+      "DM-Forefoot Set": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Barwon Hospital": {
+    sets: {
+      "DM-MCS Rearfoot 5.0/7.0": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 1, trays: [] },
+      "NSK-MI PE Instruments": { expected: 1, trays: [] },
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+      "DM-Calc Distractor": { expected: 1, trays: [] },
+      "NSK-Console": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Box Hill Hospital": {
+    sets: {
+      "DM-Forefoot": { expected: 1, trays: [] },
+      "DM-MTP Set": { expected: 1, trays: [] },
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+      "DM-MCS Rearfoot 5.0/7.0": { expected: 1, trays: [] },
+      "DM-Marathon Set": { expected: 1, trays: [] },
+      "DM-Marathon Spreaders": { expected: 1, trays: [] },
+      "DM-Marathon Removal Set": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 1, trays: [] },
+      "NSK-MI PE Instruments": { expected: 1, trays: [] },
+      "NSK-Console": { expected: 1, trays: [] },
+      "DM-Lisfranc Plate Set": { expected: 1, trays: [] },
+      "DM-Calc ORIF Plate Set": { expected: 1, trays: [] },
+      "DM-5MM Modular Screw Set": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Cabrini Brighton": {
+    sets: {
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Epworth Eastern": {
+    sets: {
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+      "DM-5MM Modular Screw Set": { expected: 1, trays: [] },
+      "DM-PECA Set": { expected: 2, trays: [] },
+      "DM-Forefoot": { expected: 1, trays: [] },
+      "DM-MCS Rearfoot 5.0/7.0": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 2, trays: [] },
+      "NSK-MI PE Instruments": { expected: 2, trays: [] },
+      "NSK-Console": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Epworth Geelong": {
+    sets: {
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+      "DM-5MM Modular Screw Set": { expected: 1, trays: [] },
+      "DM-PECA Set": { expected: 1, trays: [] },
+      "Enovis-Forefoot Set": { expected: 1, trays: [] },
+      "DM-MCS Rearfoot 5.0/7.0": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 3, trays: [] },
+      "NSK-MI PE Instruments": { expected: 3, trays: [] },
+      "NSK-Console": { expected: 1, trays: [] },
+      "DM-HCS 2.5/3.0": { expected: 1, trays: [] },
+      "DM-MTP Set": { expected: 1, trays: [] },
+      "Enovis-Arcad Instruments": { expected: 1, trays: [] },
+      "Enovis-Arcad Implants": { expected: 1, trays: [] },
+      "Enovis-Snap off 2.0": { expected: 1, trays: [] },
+      "Enovis-2.9 Nexis": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Epworth Richmond": {
+    sets: {
+      "DM-Forefoot": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "Sandringham Hospital": {
+    sets: {
+      "Enovis-Forefoot Set": { expected: 1, trays: [] },
+      "Enovis-2.3 Nexis": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "SJOG Bendigo": {
+    sets: {
+      "DM-Forefoot Set": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "SJOG Geelong": {
+    sets: {
+      "Enovis-Snap off 2.0": { expected: 1, trays: [] },
+      "Enovis-2.9 Nexis": { expected: 1, trays: [] },
+      "DM-Forefoot Set": { expected: 1, trays: [] },
+      "DM-PECA Set": { expected: 1, trays: [] },
+      "DM-HCS 2.5/3.0": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 1, trays: [] },
+      "NSK-MI PE Instruments": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+  "St Vincents Private Kew": {
+    sets: {
+      "DM-MCS 4.0 Set": { expected: 1, trays: [] },
+      "DM-5MM Modular Screw Set": { expected: 1, trays: [] },
+      "DM-PECA Set": { expected: 2, trays: [] },
+      "DM-Forefoot Set": { expected: 2, trays: [] },
+      "DM-MCS Rearfoot 5.0/7.0": { expected: 1, trays: [] },
+      "NSK-MI Handpiece": { expected: 2, trays: [] },
+      "NSK-MI PE Instruments": { expected: 2, trays: [] },
+      "NSK-Console": { expected: 1, trays: [] },
+      "DM-HCS 2.5/3.0": { expected: 1, trays: [] },
+      "DM-MTP Set": { expected: 1, trays: [] },
+      "Enovis-Arcad Instruments": { expected: 1, trays: [] },
+      "Enovis-Arcad Implants": { expected: 1, trays: [] },
+      "Enovis-Static Staples Set": { expected: 1, trays: [] },
+    },
+    loose: []
+  },
+};
+
+let currentHospital = null;
+let currentSet = null;
+let currentTray = 0;
+let currentStep = 1;
+
+// Bump this whenever the built-in DATA/SET_LIBRARY seed data changes (new hospitals,
+// sets, or instruments baked into a new version of this file). Without this, a browser
+// with an old saved session would silently keep using the OLD seed data forever, hiding
+// any update shipped in a newer copy of this file.
+const DATA_VERSION = 'v2-13-hospitals-2026-08-12';
+
+function openModal(title, fields, onSubmit) {
+  document.getElementById('modal-title').textContent = title;
+  const fieldsEl = document.getElementById('modal-fields');
+  fieldsEl.innerHTML = '';
+  fields.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-field';
+    wrap.innerHTML = `<label for="mf-${i}">${escapeHtml(f.label)}</label><input id="mf-${i}" placeholder="${escapeHtml(f.placeholder || '')}" value="${escapeHtml(f.value || '')}" ${f.mono ? 'data-mono="1"' : ''} ${f.type ? 'type="' + f.type + '"' : ''}>`;
+    fieldsEl.appendChild(wrap);
+  });
+  const errorEl = document.createElement('div');
+  errorEl.id = 'modal-error';
+  errorEl.style.cssText = 'font-size:12px;color:var(--flag);margin-top:-4px;margin-bottom:10px;display:none;';
+  fieldsEl.appendChild(errorEl);
+  const backdrop = document.getElementById('modal-backdrop');
+  backdrop.classList.add('visible');
+  const submitBtn = document.getElementById('modal-submit-btn');
+  const doSubmit = () => {
+    const values = fields.map((f, i) => document.getElementById('mf-' + i).value.trim());
+    if (fields[0] && !values[0]) {
+      errorEl.textContent = fields[0].label + ' is required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (fields[0] && fields[0].validate) {
+      const err = fields[0].validate(values[0]);
+      if (err) {
+        errorEl.textContent = err;
+        errorEl.style.display = 'block';
+        return;
+      }
+    }
+    closeModal();
+    onSubmit(values);
+  };
+  submitBtn.onclick = doSubmit;
+  fieldsEl.querySelectorAll('input').forEach(inp => {
+    inp.onkeydown = (e) => { if (e.key === 'Enter') doSubmit(); };
+  });
+  setTimeout(() => { const first = document.getElementById('mf-0'); if (first) first.focus(); }, 50);
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('visible');
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function newTray(setName) {
+  const template = SET_LIBRARY[setName] || [];
+  return { items: template.map(i => ({ ref: i.ref, name: i.name, expected: i.expected, qty: null })) };
+}
+
+function setTrayCount(hospital, setName, qty) {
+  const set = DATA[hospital].sets[setName];
+  qty = Math.max(0, qty);
+  while (set.trays.length < qty) set.trays.push(newTray(setName));
+  if (qty < set.trays.length) set.trays.length = qty;
+}
+
+function trayFlagged(tray) {
+  return tray.items.some(i => i.qty !== null && i.qty !== i.expected);
+}
+
+function setHasAnyFlaggedTray(set) {
+  return set.trays.some(t => trayFlagged(t));
+}
+
+function trayComplete(tray) {
+  return tray.items.length > 0 && tray.items.every(i => i.qty !== null);
+}
+
+function updateSteps() {
+  const s1 = document.getElementById('step1');
+  const s2 = document.getElementById('step2');
+  const s3 = document.getElementById('step3');
+  s1.className = 'step ' + (currentStep === 1 ? 'active' : 'done');
+  s2.className = 'step ' + (currentStep === 2 ? 'active' : (currentHospital ? 'done' : 'upcoming'));
+  const canStep3 = currentHospital && currentSet && DATA[currentHospital].sets[currentSet] && DATA[currentHospital].sets[currentSet].trays.length > 0;
+  s3.className = 'step ' + (currentStep === 3 ? 'active' : (canStep3 ? 'done' : 'upcoming'));
+  s1.onclick = goToHospitals;
+  s2.onclick = () => { if (currentHospital) goToTally(); };
+  s3.onclick = () => { if (canStep3) { currentTray = 0; showScreen('trays'); renderTrays(); } };
+}
+
+function showScreen(name) {
+  ['hosp', 'tally', 'trays'].forEach(s => {
+    document.getElementById('screen-' + s).classList.toggle('visible', s === name);
+  });
+}
+
+function goToHospitals() {
+  currentStep = 1;
+  showScreen('hosp');
+  renderHospitals();
+  updateSteps();
+}
+
+function goToTally() {
+  currentStep = 2;
+  showScreen('tally');
+  document.getElementById('tally-hosp-name').textContent = currentHospital;
+  renderTally();
+  updateSteps();
+}
+
+function renderHospitals() {
+  const list = document.getElementById('hosp-list');
+  list.innerHTML = '';
+  Object.keys(DATA).forEach(name => {
+    const btn = document.createElement('div');
+    btn.className = 'hosp-btn';
+    btn.textContent = name;
+    btn.onclick = () => { currentHospital = name; goToTally(); };
+    list.appendChild(btn);
+  });
+  const addBtn = document.createElement('div');
+  addBtn.className = 'add-row';
+  addBtn.textContent = '+ Add hospital';
+  addBtn.onclick = () => {
+    openModal('Add hospital', [
+      { label: 'Hospital name', placeholder: 'e.g. St Vincent\u2019s Private', validate: (v) => DATA[v] ? 'A hospital with this name already exists.' : null }
+    ], (values) => {
+      const name = values[0];
+      if (!name || DATA[name]) return;
+      DATA[name] = { sets: {}, loose: [] };
+      renderHospitals();
+      saveProgress();
+    });
+  };
+  list.appendChild(addBtn);
+}
+
+function renderTally() {
+  const list = document.getElementById('tally-list');
+  list.innerHTML = '';
+  const sets = DATA[currentHospital].sets;
+
+  Object.keys(sets).forEach(name => {
+    const set = sets[name];
+    const qty = set.trays.length;
+    const counted = qty > 0;
+    const countMismatch = counted && qty !== set.expected;
+    const instrumentFlag = counted && setHasAnyFlaggedTray(set);
+    const flagged = countMismatch || instrumentFlag;
+
+    const row = document.createElement('div');
+    row.className = 'tally-row' + (flagged ? ' flagged' : counted ? ' counted' : '');
+    row.innerHTML = `
+      <div class="name">
+        <div class="set-name">${escapeHtml(name)}</div>
+        <div class="exp-label">expected ${set.expected} trays${instrumentFlag ? ' \u00b7 item missing inside a tray' : ''}</div>
+      </div>
+      <button class="round-btn" data-act="dec" data-set="${escapeHtml(name)}">−</button>
+      <span class="tally-qty">${qty}</span>
+      <button class="round-btn" data-act="inc" data-set="${escapeHtml(name)}">+</button>
+      <span class="count-btn ${qty > 0 ? 'enabled' : ''}" data-open="${escapeHtml(name)}">Count</span>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('[data-act]').forEach(btn => {
+    btn.onclick = () => {
+      const name = btn.dataset.set;
+      const set = sets[name];
+      const delta = btn.dataset.act === 'inc' ? 1 : -1;
+      const newQty = Math.max(0, set.trays.length + delta);
+      if (newQty < set.trays.length) {
+        const removed = set.trays.slice(newQty);
+        const hasData = removed.some(t => t.items.some(i => i.qty !== null));
+        if (hasData) {
+          const ok = confirm('Tray ' + set.trays.length + ' of "' + name + '" has instrument counts already entered. Reducing the tally will delete that checklist. Continue?');
+          if (!ok) return;
+        }
+      }
+      setTrayCount(currentHospital, name, newQty);
+      renderTally();
+      updateSteps();
+      saveProgress();
+    };
+  });
+  list.querySelectorAll('[data-open]').forEach(btn => {
+    btn.onclick = () => {
+      const name = btn.dataset.open;
+      if (sets[name].trays.length === 0) return;
+      currentSet = name;
+      currentTray = 0;
+      currentStep = 3;
+      showScreen('trays');
+      renderTrays();
+      updateSteps();
+    };
+  });
+
+  const addSet = document.createElement('div');
+  addSet.className = 'add-row';
+  addSet.textContent = '+ Add set type';
+  addSet.onclick = () => {
+    openModal('Add set type', [
+      { label: 'Set / tray type name', placeholder: 'e.g. Wrist Fracture Set', validate: (v) => sets[v] ? 'This hospital already has a set with this name.' : null },
+      { label: 'Expected trays at this hospital', placeholder: '1', type: 'number', mono: true }
+    ], (values) => {
+      const name = values[0];
+      if (!name || sets[name]) return;
+      const expected = parseInt(values[1], 10) || 0;
+      if (!SET_LIBRARY[name]) SET_LIBRARY[name] = [];
+      sets[name] = { expected: expected, trays: [] };
+      renderTally();
+      saveProgress();
+    });
+  };
+  list.appendChild(addSet);
+
+  const looseRow = document.createElement('div');
+  looseRow.className = 'tally-row';
+  const looseCounted = DATA[currentHospital].loose.some(i => i.qty !== null);
+  if (looseCounted) looseRow.classList.add('counted');
+  looseRow.innerHTML = `
+    <div class="name">
+      <div class="set-name">Loose instruments</div>
+      <div class="exp-label">no target — free tally</div>
+    </div>
+    <span class="count-btn enabled" id="open-loose">Count</span>
+  `;
+  list.appendChild(looseRow);
+  document.getElementById('open-loose').onclick = () => {
+    currentSet = '__loose__';
+    currentStep = 3;
+    showScreen('trays');
+    renderTrays();
+    updateSteps();
+  };
+}
+
+function renderTrays() {
+  if (currentSet === '__loose__') {
+    renderLooseTrays();
+    return;
+  }
+  const set = DATA[currentHospital].sets[currentSet];
+  document.getElementById('tray-set-title').textContent = currentSet + ' — ' + currentHospital;
+
+  const tabs = document.getElementById('tray-tabs');
+  tabs.innerHTML = '';
+  set.trays.forEach((tray, idx) => {
+    const tab = document.createElement('div');
+    const flagged = trayFlagged(tray);
+    tab.className = 'tray-tab' + (idx === currentTray ? ' active' : '') + (flagged ? ' flagged' : '');
+    tab.textContent = 'Tray ' + (idx + 1) + (flagged ? ' !' : '');
+    tab.onclick = () => { currentTray = idx; renderTrays(); };
+    tabs.appendChild(tab);
+  });
+
+  const list = document.getElementById('instrument-list');
+  list.innerHTML = '';
+  const tray = set.trays[currentTray];
+  tray.items.forEach((item, idx) => {
+    const counted = item.qty !== null;
+    const flagged = counted && item.qty !== item.expected;
+    const row = document.createElement('div');
+    row.className = 'item-row' + (flagged ? ' flagged' : counted ? ' counted' : '');
+    row.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div class="item-ref">${escapeHtml(item.ref)}</div>
+        <div class="item-name">${escapeHtml(item.name)} <span class="exp-label">exp ${item.expected}</span></div>
+      </div>
+      <button class="round-btn" data-idx="${idx}" data-act="dec">−</button>
+      <input class="qty-field" data-idx="${idx}" inputmode="numeric" pattern="[0-9]*" value="${item.qty === null ? '' : item.qty}">
+      <button class="round-btn" data-idx="${idx}" data-act="inc">+</button>
+    `;
+    list.appendChild(row);
+  });
+
+  list.querySelectorAll('[data-act]').forEach(btn => {
+    btn.onclick = () => {
+      const item = tray.items[btn.dataset.idx];
+      let v = (item.qty === null ? 0 : item.qty) + (btn.dataset.act === 'inc' ? 1 : -1);
+      item.qty = Math.max(0, v);
+      renderTrays();
+      updateSteps();
+      saveProgress();
+    };
+  });
+  list.querySelectorAll('input.qty-field').forEach(inp => {
+    inp.oninput = () => {
+      const item = tray.items[inp.dataset.idx];
+      item.qty = inp.value === '' ? null : Math.max(0, parseInt(inp.value, 10) || 0);
+      const focusIdx = inp.dataset.idx;
+      renderTrays();
+      updateSteps();
+      saveProgress();
+      const again = document.querySelectorAll('input.qty-field')[focusIdx];
+      if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+    };
+  });
+
+  const statusParts = set.trays.map((t, i) => 'Tray ' + (i + 1) + ': ' + (trayFlagged(t) ? 'flagged' : trayComplete(t) ? 'complete' : 'in progress'));
+  document.getElementById('tray-status').textContent = statusParts.join(' · ');
+}
+
+function addInstrument() {
+  if (currentSet === '__loose__') {
+    const looseItems = DATA[currentHospital].loose;
+    openModal('Add loose instrument', [
+      { label: 'Reference / code', placeholder: 'e.g. LOOSE-003', mono: true, validate: (v) => looseItems.some(i => i.ref === v) ? 'An instrument with this reference already exists here.' : null },
+      { label: 'Instrument name', placeholder: 'e.g. Bone rasp' }
+    ], (values) => {
+      const ref = values[0];
+      if (!ref) return;
+      looseItems.push({ ref: ref, name: values[1] || ref, qty: null });
+      renderTrays();
+      saveProgress();
+    });
+    return;
+  }
+  const templateItems = (SET_LIBRARY[currentSet] || []);
+  openModal('Add instrument to checklist', [
+    { label: 'Reference / code', placeholder: 'e.g. AF-004', mono: true, validate: (v) => templateItems.some(i => i.ref === v) ? 'An instrument with this reference already exists in this set.' : null },
+    { label: 'Instrument name', placeholder: 'e.g. Cannulated drill guide' },
+    { label: 'Expected quantity in this tray', placeholder: '1', type: 'number', mono: true }
+  ], (values) => {
+    const ref = values[0];
+    if (!ref) return;
+    const name = values[1];
+    const expected = parseInt(values[2], 10) || 0;
+    const set = DATA[currentHospital].sets[currentSet];
+    set.trays.forEach(tray => tray.items.push({ ref: ref, name: name || ref, expected: expected, qty: null }));
+    if (SET_LIBRARY[currentSet]) SET_LIBRARY[currentSet].push({ ref: ref, name: name || ref, expected: expected });
+    renderTrays();
+    saveProgress();
+  });
+}
+
+function renderLooseTrays() {
+  document.getElementById('tray-set-title').textContent = 'Loose instruments — ' + currentHospital;
+  document.getElementById('tray-tabs').innerHTML = '';
+  const list = document.getElementById('instrument-list');
+  list.innerHTML = '';
+  const items = DATA[currentHospital].loose;
+  items.forEach((item, idx) => {
+    const counted = item.qty !== null;
+    const row = document.createElement('div');
+    row.className = 'item-row' + (counted ? ' counted' : '');
+    row.innerHTML = `
+      <div style="flex:1; min-width:0;">
+        <div class="item-ref">${escapeHtml(item.ref)}</div>
+        <div class="item-name">${escapeHtml(item.name)}</div>
+      </div>
+      <button class="round-btn" data-idx="${idx}" data-act="dec">−</button>
+      <input class="qty-field" data-idx="${idx}" inputmode="numeric" pattern="[0-9]*" value="${item.qty === null ? '' : item.qty}">
+      <button class="round-btn" data-idx="${idx}" data-act="inc">+</button>
+    `;
+    list.appendChild(row);
+  });
+  list.querySelectorAll('[data-act]').forEach(btn => {
+    btn.onclick = () => {
+      const item = items[btn.dataset.idx];
+      let v = (item.qty === null ? 0 : item.qty) + (btn.dataset.act === 'inc' ? 1 : -1);
+      item.qty = Math.max(0, v);
+      renderLooseTrays();
+      saveProgress();
+    };
+  });
+  list.querySelectorAll('input.qty-field').forEach(inp => {
+    inp.oninput = () => {
+      const item = items[inp.dataset.idx];
+      item.qty = inp.value === '' ? null : Math.max(0, parseInt(inp.value, 10) || 0);
+      const focusIdx = inp.dataset.idx;
+      renderLooseTrays();
+      saveProgress();
+      const again = document.querySelectorAll('input.qty-field')[focusIdx];
+      if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+    };
+  });
+  document.getElementById('tray-status').textContent = 'Free tally — no expected quantity to check against.';
+}
+
+function saveProgress(manual) {
+  try {
+    const state = {
+      dataVersion: DATA_VERSION,
+      name: document.getElementById('inp-name').value,
+      date: document.getElementById('inp-date').value,
+      data: DATA,
+      library: SET_LIBRARY,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('instrument_checklist_progress', JSON.stringify(state));
+    const label = document.getElementById('autosave-label');
+    label.textContent = (manual ? 'Saved just now' : 'Auto-saved just now');
+  } catch (e) {
+    document.getElementById('autosave-label').textContent = 'Save failed';
+  }
+}
+
+function restoreProgress() {
+  try {
+    const saved = localStorage.getItem('instrument_checklist_progress');
+    if (!saved) return;
+    const state = JSON.parse(saved);
+    if (state.dataVersion !== DATA_VERSION) {
+      // Seed data has been updated since this session was saved (new hospitals/sets
+      // shipped in this file) — keep the fresh built-in data instead of overwriting it
+      // with the stale saved copy, but still bring back the counter's name/date.
+      if (state.name) document.getElementById('inp-name').value = state.name;
+      if (state.date) document.getElementById('inp-date').value = state.date;
+      document.getElementById('autosave-label').textContent = 'App data updated — previous counts not restored';
+      return;
+    }
+    if (state.data) DATA = state.data;
+    if (state.library) Object.assign(SET_LIBRARY, state.library);
+    if (state.name) document.getElementById('inp-name').value = state.name;
+    if (state.date) document.getElementById('inp-date').value = state.date;
+    document.getElementById('autosave-label').textContent = 'Restored previous session';
+  } catch (e) {}
+}
+
+function statusFor(counted, flagged) {
+  if (flagged) return 'Flagged';
+  if (counted) return 'OK';
+  return 'Not Checked';
+}
+
+function exportExcel() {
+  const counterName = document.getElementById('inp-name').value || '';
+  const dateVal = document.getElementById('inp-date').value || new Date().toISOString().slice(0, 10);
+
+  const tallyRows = [['Location', 'Set / Tray Type', 'Expected Qty', 'Counted Qty', 'Status', 'Counter Name', 'Date']];
+  const instrumentRows = [['Location', 'Set / Tray Type', 'Tray Instance', 'Instrument Reference', 'Instrument Name', 'Expected Qty', 'Counted Qty', 'Status', 'Counter Name', 'Date']];
+
+  Object.keys(DATA).forEach(hospital => {
+    const h = DATA[hospital];
+    Object.keys(h.sets).forEach(setName => {
+      const set = h.sets[setName];
+      const counted = set.trays.length > 0;
+      const flagged = counted && set.trays.length !== set.expected;
+      tallyRows.push([hospital, setName, set.expected, set.trays.length, statusFor(counted, flagged), counterName, dateVal]);
+
+      set.trays.forEach((tray, idx) => {
+        tray.items.forEach(item => {
+          const itCounted = item.qty !== null;
+          const itFlagged = itCounted && item.qty !== item.expected;
+          instrumentRows.push([hospital, setName, 'Tray ' + (idx + 1), item.ref, item.name, item.expected, item.qty === null ? '' : item.qty, statusFor(itCounted, itFlagged), counterName, dateVal]);
+        });
+      });
+    });
+
+    h.loose.forEach(item => {
+      const itCounted = item.qty !== null;
+      instrumentRows.push([hospital, 'Loose Instruments', '', item.ref, item.name, '', item.qty === null ? '' : item.qty, statusFor(itCounted, false), counterName, dateVal]);
+    });
+  });
+
+  const flaggedRows = [instrumentRows[0]].concat(instrumentRows.slice(1).filter(r => r[7] === 'Flagged'));
+
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(tallyRows);
+  ws1['!cols'] = [{ wch: 20 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 18 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Set Tally');
+
+  const ws2 = XLSX.utils.aoa_to_sheet(instrumentRows);
+  ws2['!cols'] = [{ wch: 20 }, { wch: 20 }, { wch: 12 }, { wch: 14 }, { wch: 32 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 18 }, { wch: 12 }];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Instrument Checklist');
+
+  if (flaggedRows.length > 1) {
+    const ws3 = XLSX.utils.aoa_to_sheet(flaggedRows);
+    ws3['!cols'] = ws2['!cols'];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Flagged Only');
+  }
+
+  downloadWorkbook(wb, 'instrument-checklist-' + dateVal + '.xlsx');
+}
+
+function downloadWorkbook(wb, filename) {
+  // Apple Numbers / Samsung Internet compatibility: XLSX.writeFile can silently
+  // fail to trigger a download on iOS Safari and some Android browsers.
+  // Fall back to a manual Blob + anchor.click() download if it does.
+  try {
+    XLSX.writeFile(wb, filename, { bookType: 'xlsx' });
+  } catch (e) {
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+}
+
+document.getElementById('inp-date').valueAsDate = new Date();
+restoreProgress();
+renderHospitals();
+updateSteps();
+</script>
+</body>
+</html>
